@@ -44,15 +44,12 @@ const Annotate: NextPageWithLayout = function() {
                         images = (await api.get(`/api/datasets/${router.query.annotateId}/assets/ids`, { params: { stage: 'uploaded' } })).data.data;
                     }
                     const datasetLabels: Flockfysh.Label[] = (await api.get(`/api/datasets/${router.query.annotateId}/labels`)).data.data;
-                    console.log(datasetLabels);
                     setImageIndex(0);
                     setImageIds(images);
                     setNumImages(images.length);
                     setLabels(datasetLabels);
                 }
                 catch (e) {
-                    console.log(e);
-                    console.log("HI");
                     router.push('/404');
                 }
             })();
@@ -71,10 +68,9 @@ const Annotate: NextPageWithLayout = function() {
 
                     // Step 2: Get the image's annotation data.
                     const remoteAnnotationData = (await api.get<{ success: boolean, data: any[] }>(`/api/assets/${imageIds[imageIndex]}/annotations`)).data.data;
-
                     const localAnnotationData = new Map<string, AnnotationObject>();
                     for (const remoteObject of remoteAnnotationData) {
-                        const [x, y, width, height] = remoteObject.boundingBox;
+                        const [x, y, width, height] = [remoteObject.data.center[0]-remoteObject.data.dimensions[0]/2,remoteObject.data.center[1]-remoteObject.data.dimensions[1]/2, remoteObject.data.dimensions[0], remoteObject.data.dimensions[1]]
                         localAnnotationData.set(v4(), new AnnotationObject(remoteObject.label, remoteObject.frame, remoteObject._id, {
                             x, y, width, height,
                         }));
@@ -153,7 +149,7 @@ function AnnotateInner() {
     } = React.useContext(AnnotationPageContext);
     const router = useRouter();
     setCurBox;
-    const NoSSRComponent = dynamic(() => import("@/components/annotate/wrapper"), {
+    const NoSSRComponent = dynamic(() => import("@/components/annotate/polygon"), {
         ssr: false,
     });
     
@@ -172,7 +168,7 @@ function AnnotateInner() {
                               className={ classes.initiateTrainingButton }/>
             </div>
             <div className={ classes.leftContainer }>
-                <NoSSRComponent/>
+                <NoSSRComponent videoSource={curImage.url}/>
             </div>
             <div className={ classes.labelContainer }>
                 <div className={ classes.labelList }>

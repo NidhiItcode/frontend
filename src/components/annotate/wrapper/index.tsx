@@ -40,7 +40,7 @@ export default function AnnotationWrapper() {
         width: 0,
         height: 0,
     });
-
+    const [rectangles, setRectangles] = useState<JSX.Element[]>([]);
     const annotationImageRef = useRef<HTMLImageElement | null>(null);
 
     useEffect(() => {
@@ -64,46 +64,49 @@ export default function AnnotationWrapper() {
             };
         }
     }, []);
-
-    const rectangles = [];
-
-    for (const [id, annotationObject] of curAnnotationData.entries()) {
-        if (annotationObject.label === curLabel) {
-            rectangles.push((
-                <Rectangle
-                    key={ id }
-                    shapeProps={ {
-                        ...annotationObject.boundingBox,
-                        stroke: curLabel ? curLabel.color : LABEL_COLORS[0],
-                        opacity: isEditing ? 1 : 0.5,
-                    } }
-                    onSelect={ () => {
-                        setCurBox(id);
-                    } }
-                    onDeselect={ () => {
-                        setCurBox('');
-                    } }
-                    isSelected={ id === curBox }
-                    containerWidth={ wrapperDimension.width }
-                    containerHeight={ wrapperDimension.height }
-                    onChange={
-                        function save(box) {
-                            annotationObject.edit(box);
-                            refresh();
-                        }
-                    }
-                    onDelete={
-                        function deleteBox() {
-                            annotationObject.delete();
-                            curAnnotationData.delete(id);
-                            refresh();
+    useEffect(() => {
+        const temp = [];
+        for (const [id, annotationObject] of curAnnotationData.entries()) {
+            if (annotationObject.label && curLabel && annotationObject.label._id === curLabel._id) {
+                temp.push((
+                    <Rectangle
+                        key={ id }
+                        shapeProps={ {
+                            ...annotationObject.boundingBox,
+                            stroke: curLabel ? curLabel.color : LABEL_COLORS[2],
+                            opacity: isEditing ? 1 : 0.5,
+                        } }
+                        onSelect={ () => {
+                            setCurBox(id);
+                        } }
+                        onDeselect={ () => {
                             setCurBox('');
+                        } }
+                        isSelected={ id === curBox }
+                        containerWidth={ wrapperDimension.width }
+                        containerHeight={ wrapperDimension.height }
+                        onChange={
+                            function save(box) {
+                                annotationObject.edit(box);
+                                refresh();
+                            }
                         }
-                    }
-                />
-            ));
+                        onDelete={
+                            function deleteBox() {
+                                annotationObject.delete();
+                                curAnnotationData.delete(id);
+                                refresh();
+                                setCurBox('');
+                            }
+                        }
+                    />
+                ));
+            }
         }
-    }
+        console.log(temp);
+        console.log(curAnnotationData);
+        setRectangles(temp);
+    }, [curLabel])
 
     return (
         <div className={ classes.annotationWrapper }>

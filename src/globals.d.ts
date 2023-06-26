@@ -11,7 +11,9 @@ declare global {
             color: string;
             tool: Flockfysh.AnnotationTool,
         }
-
+        interface TemporaryAnnotation{
+            id: string;
+        }
         interface Recipe {
             _id: string;
             name: string;
