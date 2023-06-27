@@ -6,19 +6,18 @@ import Konva from 'konva';
 const PolygonAnnotation = (props: any) =>{
     const {
         points,
+        setPoints,
         flattenedPoints,
         isFinished,
-        handlePointDragMove,
-        handleGroupDragEnd,
-        handleMouseOverStartPoint,
-        handleMouseOutStartPoint,
+        onChange,
+        isMouseOverPoint,
+        setIsMouseOverPoint,
     } = props;
     const rectWidth = 10;
     const rectHeight = 10;
     const [stage, setStage] = useState<any>();
     const [minMaxX, setMinMaxX] = useState([0,0]);
     const [minMaxY, setMinMaxY] = useState([0,0]);
-
     const pointDragBoundFunc = (pos: any) =>{
         if(!stage) return pos;
         let x = pos.x;
@@ -58,6 +57,36 @@ const PolygonAnnotation = (props: any) =>{
         if(minMaxX[1] + x > sw) x = sw - minMaxX[1];
         return { x, y };
     }
+    const handlePointDragMove = (e: Konva.KonvaEventObject<DragEvent>) =>{
+        const stage = e.target.getStage();
+        const oldScale = stage?.scaleX!();
+        const index = e.target.index - 1;
+        const pos = [(e.target._lastPos.x - stage!.x())/oldScale!, (e.target._lastPos.y - stage!.y())/oldScale!];
+        if(pos[0] < 0) pos[0] = 0;
+        if(pos[1] < 0) pos[1] = 0;
+        if(pos[0] > stage!.width()) pos[0] = stage!.width();
+        if(pos[1] > stage!.height()) pos[1] = stage!.height();
+        setPoints([...points.slice(0, index), pos, ...points.slice(index+1)]);
+    }
+    const handleGroupDragEnd = (e: Konva.KonvaEventObject<DragEvent>) =>{
+        if(e.target.name() === 'polygon'){
+            let result: any[] = [];
+            let copyPoints = [...points];
+            copyPoints.map((point) => result.push([point[0] + e.target.x(), point[1] + e.target.y()]));
+            e.target.position({x: 0, y: 0});
+            setPoints(result);
+        }
+    }
+    const handleMouseOverStartPoint = (e: Konva.KonvaEventObject<DragEvent>) =>{
+        if(isFinished || points.length<3) return;
+        e.target.scale({x: 1.5, y: 1.5});
+        setIsMouseOverPoint(true);
+    }
+    const handleMouseOutStartPoint = (e: Konva.KonvaEventObject<DragEvent>) =>{
+        e.target.scale({x: 1, y: 1});
+        setIsMouseOverPoint(false);
+    }
+
     return (
         <Group
             name="polygon"

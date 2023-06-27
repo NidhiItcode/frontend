@@ -1,10 +1,21 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useEffect, useContext } from 'react';
 import PolygonAnnotation from './polygonAnnotation';
 import { Stage, Layer, Image } from 'react-konva';
 import { closestPointIndex, isCloser } from '@/helpers/canvas';
 import Konva from 'konva';
+import { AnnotationPageContext } from '@/contexts/annotationContext';
 
 const Canvas = (props: {videoSource: string}) =>{
+    const {
+        curImage,
+        isEditing,
+        addAnnotationObject,
+        curAnnotationData,
+        curLabel,
+        curBox,
+        setCurBox,
+        refresh,
+    } = useContext(AnnotationPageContext);
 
     const [image, setImage] = useState<HTMLImageElement | null>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
@@ -13,12 +24,11 @@ const Canvas = (props: {videoSource: string}) =>{
     const [size, setSize] = useState<{width: number, height: number}>();
     const [flattenedPoints, setFlattenedPoints] = useState<number[][]>();
     const [position, setPosition] = useState<number[]>([0,0]);
-    const [isMouseOverPoint, setIsMouseOverPoint] = useState<boolean>(false);
     const [isPolyComplete, setIsPolyComplete] = useState<boolean>(false);
     const [stageX, setStageX] = useState(0);
     const [stageY, setStageY] = useState(0);
     const [stageScale, setStageScale] = useState(1);
-
+    const [isMouseOverPoint, setIsMouseOverPoint] = useState<boolean>(false);
     const videoElement = useMemo(() =>{
         const element = new window.Image();
         element.width = 480;
@@ -26,7 +36,92 @@ const Canvas = (props: {videoSource: string}) =>{
         element.src = props.videoSource;
         return element;
     }, [props.videoSource]);
-
+    const [wrapperDimension, setWrapperDimension] = useState<{ width: number, height: number }>({
+        width: 0,
+        height: 0,
+    });
+    const [rectangles, setRectangles] = useState<JSX.Element[]>([]);
+    const annotationImageRef = useRef<HTMLImageElement | null>(null);
+    
+        useEffect(() => {
+            if (annotationImageRef.current) {
+                const imageElem = annotationImageRef.current;
+    
+                const updateWrapperSize= function(): void {
+                    setWrapperDimension({
+                        width: Math.ceil(imageElem.width),
+                        height: Math.ceil(imageElem.height),
+                    });
+                }
+    
+                updateWrapperSize();
+                imageElem.addEventListener('load', updateWrapperSize);
+                window.addEventListener('resize', updateWrapperSize);
+    
+                return () => {
+                    imageElem.removeEventListener('load', updateWrapperSize);
+                    window.removeEventListener('resize', updateWrapperSize);
+                };
+            }
+        }, []);
+        useEffect(() => {
+            const temp = [];
+            for (const [id, annotationObject] of curAnnotationData.entries()) {
+                if (annotationObject.label && curLabel && annotationObject.label._id === curLabel._id) {
+                    temp.push((
+                        // <Rectangle
+                        //     key={ id }
+                        //     shapeProps={ {
+                        //         ...annotationObject.boundingBox,
+                        //         stroke: curLabel ? curLabel.color : LABEL_COLORS[2],
+                        //         opacity: isEditing ? 1 : 0.5,
+                        //     } }
+                        //     onSelect={ () => {
+                        //         setCurBox(id);
+                        //     } }
+                        //     onDeselect={ () => {
+                        //         setCurBox('');
+                        //     } }
+                        //     isSelected={ id === curBox }
+                        //     containerWidth={ wrapperDimension.width }
+                        //     containerHeight={ wrapperDimension.height }
+                        //     onChange={
+                        //         function save(box) {
+                        //             annotationObject.edit(box);
+                        //             refresh();
+                        //         }
+                        //     }
+                        //     onDelete={
+                        //         function deleteBox() {
+                        //             annotationObject.delete();
+                        //             curAnnotationData.delete(id);
+                        //             refresh();
+                        //             setCurBox('');
+                        //         }
+                        //     }
+                        // />
+                        <PolygonAnnotation
+                            key={id}
+                            points={points}
+                            setPoints={setPoints}
+                            flattenedPoints={flattenedPoints}
+                            isFinished={isPolyComplete}
+                            onChange={
+                                function save(points: any[]){
+                                    annotationObject.edit(points);
+                                    refresh();
+                                }
+                            }
+                            isMouseOverPoint={isMouseOverPoint}
+                            setIsMouseOverPoint={setIsMouseOverPoint}
+                        />
+                    ));
+                }
+            }
+            console.log(temp);
+            console.log(curAnnotationData);
+            setRectangles(temp);
+        }, [curLabel])
     useEffect(() =>{
         const onload = function(){
             setSize({
@@ -81,36 +176,17 @@ const Canvas = (props: {videoSource: string}) =>{
             setIsPolyComplete(true);
             handleMouseOutStartPoint(e);
         }
-        else setPoints([...points, mousePos]);
+        setPoints([...points, mousePos]);
+    }
+    const handleMouseOutStartPoint = (e: Konva.KonvaEventObject<DragEvent>) =>{
+        e.target.scale({x: 1, y: 1});
+        setIsMouseOverPoint(false);
     }
 
     const handleMouseMove = (e: Konva.KonvaEventObject<DragEvent>) =>{
         const stage = e.target.getStage();
         const mousePos = getMousePos(stage!);
         setPosition(mousePos);
-    }
-
-    const handleMouseOverStartPoint = (e: Konva.KonvaEventObject<DragEvent>) =>{
-        if(isPolyComplete || points.length<3) return;
-        e.target.scale({x: 1.5, y: 1.5});
-        setIsMouseOverPoint(true);
-    }
-
-    const handleMouseOutStartPoint = (e: Konva.KonvaEventObject<DragEvent>) =>{
-        e.target.scale({x: 1, y: 1});
-        setIsMouseOverPoint(false);
-    }
-
-    const handlePointDragMove = (e: Konva.KonvaEventObject<DragEvent>) =>{
-        const stage = e.target.getStage();
-        const oldScale = stage?.scaleX!();
-        const index = e.target.index - 1;
-        const pos = [(e.target._lastPos.x - stage!.x())/oldScale!, (e.target._lastPos.y - stage!.y())/oldScale!];
-        if(pos[0] < 0) pos[0] = 0;
-        if(pos[1] < 0) pos[1] = 0;
-        if(pos[0] > stage!.width()) pos[0] = stage!.width();
-        if(pos[1] > stage!.height()) pos[1] = stage!.height();
-        setPoints([...points.slice(0, index), pos, ...points.slice(index+1)]);
     }
 
     const handleDoubleClick = (e: Konva.KonvaEventObject<DragEvent>) =>{
@@ -143,15 +219,6 @@ const Canvas = (props: {videoSource: string}) =>{
         setIsPolyComplete(false);
     }
 
-    const handleGroupDragEnd = (e: Konva.KonvaEventObject<DragEvent>) =>{
-        if(e.target.name() === 'polygon'){
-            let result: any[] = [];
-            let copyPoints = [...points];
-            copyPoints.map((point) => result.push([point[0] + e.target.x(), point[1] + e.target.y()]));
-            e.target.position({x: 0, y: 0});
-            setPoints(result);
-        }
-    }
     const handleScroll = (e: any) =>{
         e.evt.preventDefault();
         const stage = e.target.getStage();
@@ -209,12 +276,14 @@ const Canvas = (props: {videoSource: string}) =>{
                     <Image ref={imageRef} image={image} x={0} y={0} width={size!.width} height={size!.height}/>
                     <PolygonAnnotation
                         points={points}
+                        setPoints={setPoints}
                         flattenedPoints={flattenedPoints}
-                        handlePointDragMove={handlePointDragMove}
-                        handleGroupDragEnd={handleGroupDragEnd}
-                        handleMouseOverStartPoint={handleMouseOverStartPoint}
-                        handleMouseOutStartPoint={handleMouseOutStartPoint}
                         isFinished={isPolyComplete}
+                        onChange={
+                            () => {;}
+                        }
+                        isMouseOverPoint={isMouseOverPoint}
+                        setIsMouseOverPoint={setIsMouseOverPoint}
                     />
                 </Layer>
             </Stage>

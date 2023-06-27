@@ -79,7 +79,13 @@ declare global {
             url: string;
             displayName: string;
         }
+        interface Point{
+            x: number;
+            y: number;
+        }
     }
+
+
 
     namespace Api {
         interface Response<T> {

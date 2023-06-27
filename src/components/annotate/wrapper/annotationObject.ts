@@ -21,6 +21,8 @@ export default class AnnotationObject {
         x: 0.5,
         y: 0.5,
     };
+    points: Flockfysh.Point[] = [];
+
     deleted: boolean = false;
 
     async pollInner() {
@@ -31,11 +33,13 @@ export default class AnnotationObject {
         if (!this.serverId) throw new Error('This internal function cannot be called without having a server ID.');
         
         const { width, height, x, y } = this.boundingBox;
-
+        const temp: any = this.points.map((point: Flockfysh.Point) =>{
+            return [point.x, point.y];
+        });
         await api.put(`/api/annotations/${this.serverId}`, {
             label: this.label?._id,
             frame: this.frame,
-            data: {center: [x+width/2, y+height/2], dimensions:[width, height], rotation: 0},
+            data: temp
         });
     }
 
@@ -55,11 +59,11 @@ export default class AnnotationObject {
      * If the box is newly created, leave this empty.
      * @param boundingBox Annotation box data from the server.
      */
-    constructor(label: Flockfysh.Label, frame: number, serverId?: string, boundingBox?: AnnotationBox) {
+    constructor(label: Flockfysh.Label, frame: number, serverId?: string, points?: Flockfysh.Point[]) {
         this.label = label;
         this.frame = frame;
         this.serverId = serverId;
-        if (boundingBox) this.boundingBox = boundingBox;
+        if (points) this.points = points;
     }
 
     /**
@@ -72,19 +76,21 @@ export default class AnnotationObject {
         if (this.serverId) throw new Error('This annotation box has already been created server-side.');
         
         const { width, height, x, y } = this.boundingBox;
-
+        const temp = this.points.map((point: Flockfysh.Point) =>{
+            return [point.x, point.y];
+        })
         const response = await api.post(`/api/assets/${imageId}/annotations`, {
             label: this.label?._id,
             frame: this.frame,
-            data: {center: [x+width/2, y+height/2], dimensions:[width, height], rotation: 0},
+            data: temp,
             assetId: imageId
         });
 
-        const newRemoteAnnotationBox = response.data.data;
+        const newRemoteAnnotationData = response.data.data;
         
-        if (!newRemoteAnnotationBox.id) throw new Error('Annotation response from server is malformed.');
+        if (!newRemoteAnnotationData.id) throw new Error('Annotation response from server is malformed.');
         
-        this.serverId = newRemoteAnnotationBox.id;
+        this.serverId = newRemoteAnnotationData.id;
     }
 
     /**
@@ -94,8 +100,8 @@ export default class AnnotationObject {
      *
      * @param newData The new coordinates and dimensions of the box.
      */
-    async edit(newData: AnnotationBox): Promise<void> {
-        this.boundingBox = newData;
+    async edit(newData: Flockfysh.Point[]): Promise<void> {
+        this.points = newData;
 
         if (!this.serverId) {
             if (!this.pollQueued) {
