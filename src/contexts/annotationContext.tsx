@@ -11,11 +11,11 @@ export interface IAnnotationPageContext {
     refresh: () => void;
     curLabel: Flockfysh.Label | null;
     setCurLabel: (label: Flockfysh.Label | null) => void;
-    curBox: string;
+    curPolygon: string;
     isEditing: boolean;
     setIsEditing: (data: boolean) => void;
-    setCurBox: (data: string) => void;
-    addAnnotationObject: (params?: AnnotationBox) => Promise<void>;
+    setCurPolygon: (data: string) => void;
+    addAnnotationObject: (params?: Flockfysh.Point[]) => Promise<void>;
     numImages: number;
 }
 
@@ -34,8 +34,8 @@ export const AnnotationPageContext = React.createContext<IAnnotationPageContext>
     curLabel: null,
     setCurLabel: () => {
     },
-    curBox: '',
-    setCurBox: () => {
+    curPolygon: '',
+    setCurPolygon: () => {
     },
     addAnnotationObject: async () => {
     },

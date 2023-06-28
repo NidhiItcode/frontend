@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Line, Circle, Group, Rect } from 'react-konva';
 import { minMax, dragBoundFunc } from '@/helpers/canvas';
 import Konva from 'konva';
+import { AnnotationPageContext } from '@/contexts/annotationContext';
 
 const PolygonAnnotation = (props: any) =>{
     const {
+        curImage,
+        isEditing,
+        addAnnotationObject,
+        curAnnotationData,
+        curLabel,
+        curPolygon,
+        setCurPolygon,
+        refresh,
+    } = useContext(AnnotationPageContext);
+
+    const {
         points,
-        setPoints,
         flattenedPoints,
         isFinished,
         onChange,
@@ -18,6 +29,7 @@ const PolygonAnnotation = (props: any) =>{
     const [stage, setStage] = useState<any>();
     const [minMaxX, setMinMaxX] = useState([0,0]);
     const [minMaxY, setMinMaxY] = useState([0,0]);
+
     const pointDragBoundFunc = (pos: any) =>{
         if(!stage) return pos;
         let x = pos.x;
@@ -30,8 +42,11 @@ const PolygonAnnotation = (props: any) =>{
         if (tempY - rectHeight < 0) y = stage.y();
         return { x, y };
     }
+
     const handleGroupMouseOver = (e: Konva.KonvaEventObject<DragEvent>) =>{
-        if(!isFinished) return;
+        console.log(isFinished);
+        console.log(isEditing);
+        if(!isFinished || !isEditing) return;
         e.target.getStage()!.container().style.cursor = 'move';
         setStage(e.target.getStage());
     }
@@ -57,6 +72,7 @@ const PolygonAnnotation = (props: any) =>{
         if(minMaxX[1] + x > sw) x = sw - minMaxX[1];
         return { x, y };
     }
+
     const handlePointDragMove = (e: Konva.KonvaEventObject<DragEvent>) =>{
         const stage = e.target.getStage();
         const oldScale = stage?.scaleX!();
@@ -66,19 +82,20 @@ const PolygonAnnotation = (props: any) =>{
         if(pos[1] < 0) pos[1] = 0;
         if(pos[0] > stage!.width()) pos[0] = stage!.width();
         if(pos[1] > stage!.height()) pos[1] = stage!.height();
-        setPoints([...points.slice(0, index), pos, ...points.slice(index+1)]);
+        onChange([...points.slice(0, index), pos, ...points.slice(index+1)]);
     }
+    
     const handleGroupDragEnd = (e: Konva.KonvaEventObject<DragEvent>) =>{
         if(e.target.name() === 'polygon'){
             let result: any[] = [];
             let copyPoints = [...points];
             copyPoints.map((point) => result.push([point[0] + e.target.x(), point[1] + e.target.y()]));
             e.target.position({x: 0, y: 0});
-            setPoints(result);
+            onChange(result);
         }
     }
     const handleMouseOverStartPoint = (e: Konva.KonvaEventObject<DragEvent>) =>{
-        if(isFinished || points.length<3) return;
+        if(isFinished || points.length<3 || isEditing) return;
         e.target.scale({x: 1.5, y: 1.5});
         setIsMouseOverPoint(true);
     }
@@ -89,8 +106,7 @@ const PolygonAnnotation = (props: any) =>{
 
     return (
         <Group
-            name="polygon"
-            draggable={ isFinished }
+            draggable={ isFinished && isEditing }
             onDragStart = { handleGroupDragStart }
             onDragEnd = { handleGroupDragEnd }
             dragBoundFunc = { groupDragBound }

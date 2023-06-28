@@ -39,7 +39,7 @@ export default class AnnotationObject {
         await api.put(`/api/annotations/${this.serverId}`, {
             label: this.label?._id,
             frame: this.frame,
-            data: temp
+            data: {points: temp}
         });
     }
 
@@ -82,7 +82,7 @@ export default class AnnotationObject {
         const response = await api.post(`/api/assets/${imageId}/annotations`, {
             label: this.label?._id,
             frame: this.frame,
-            data: temp,
+            data: {points: temp},
             assetId: imageId
         });
 

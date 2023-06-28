@@ -12,14 +12,13 @@ const Canvas = (props: {videoSource: string}) =>{
         addAnnotationObject,
         curAnnotationData,
         curLabel,
-        curBox,
-        setCurBox,
+        curPolygon,
+        setCurPolygon,
         refresh,
     } = useContext(AnnotationPageContext);
 
     const [image, setImage] = useState<HTMLImageElement | null>(null);
     const imageRef = useRef<HTMLImageElement | null>(null);
-    const dataRef = useRef(null);
     const [points, setPoints] = useState<any[]>([]);
     const [size, setSize] = useState<{width: number, height: number}>();
     const [flattenedPoints, setFlattenedPoints] = useState<number[][]>();
@@ -40,7 +39,7 @@ const Canvas = (props: {videoSource: string}) =>{
         width: 0,
         height: 0,
     });
-    const [rectangles, setRectangles] = useState<JSX.Element[]>([]);
+    const [polygons, setPolygons] = useState<JSX.Element[]>([]);
     const annotationImageRef = useRef<HTMLImageElement | null>(null);
     
         useEffect(() => {
@@ -68,6 +67,7 @@ const Canvas = (props: {videoSource: string}) =>{
             const temp = [];
             for (const [id, annotationObject] of curAnnotationData.entries()) {
                 if (annotationObject.label && curLabel && annotationObject.label._id === curLabel._id) {
+                    const temp2 = annotationObject.points.map((point: Flockfysh.Point) => { return [point.x, point.y]});
                     temp.push((
                         // <Rectangle
                         //     key={ id }
@@ -102,25 +102,22 @@ const Canvas = (props: {videoSource: string}) =>{
                         // />
                         <PolygonAnnotation
                             key={id}
-                            points={points}
-                            setPoints={setPoints}
-                            flattenedPoints={flattenedPoints}
-                            isFinished={isPolyComplete}
+                            points={temp2}
+                            flattenedPoints={[...temp2]}
+                            isFinished={true}
                             onChange={
                                 function save(points: any[]){
                                     annotationObject.edit(points);
                                     refresh();
                                 }
                             }
-                            isMouseOverPoint={isMouseOverPoint}
-                            setIsMouseOverPoint={setIsMouseOverPoint}
+                            isMouseOverPoint={() => {;}}
+                            setIsMouseOverPoint={() => {;}}
                         />
                     ));
                 }
             }
-            console.log(temp);
-            console.log(curAnnotationData);
-            setRectangles(temp);
+            setPolygons(temp);
         }, [curLabel])
     useEffect(() =>{
         const onload = function(){
@@ -169,14 +166,19 @@ const Canvas = (props: {videoSource: string}) =>{
     }
 
     const handleMouseDown = (e: Konva.KonvaEventObject<DragEvent>) =>{
-        if(isPolyComplete) return;
+        if(isPolyComplete || isEditing) return;
         const stage = e.target.getStage();
         const mousePos = getMousePos(stage!);
         if(isMouseOverPoint && points.length >=3){
-            setIsPolyComplete(true);
             handleMouseOutStartPoint(e);
+            addAnnotationObject(points.map((point: number[]): Flockfysh.Point => {
+                return {x: point[0], y: point[1]};
+            }));
+            setPoints([]);
+            setFlattenedPoints([]);
+            setIsPolyComplete(false);
         }
-        setPoints([...points, mousePos]);
+        else setPoints([...points, mousePos]);
     }
     const handleMouseOutStartPoint = (e: Konva.KonvaEventObject<DragEvent>) =>{
         e.target.scale({x: 1, y: 1});
@@ -241,10 +243,6 @@ const Canvas = (props: {videoSource: string}) =>{
         }
     }
 
-    const showCoordinates = () =>{
-        if(isPolyComplete) dataRef.current.style.display = "";
-    }
-
     if(!size){
         return <></>
     }
@@ -273,27 +271,22 @@ const Canvas = (props: {videoSource: string}) =>{
                 draggable
             >
                 <Layer>
-                    <Image ref={imageRef} image={image} x={0} y={0} width={size!.width} height={size!.height}/>
-                    <PolygonAnnotation
+                    <Image ref={imageRef!} image={image!} x={0} y={0} width={size!.width} height={size!.height}/>
+                    {polygons}
+                    {!isEditing && <PolygonAnnotation
                         points={points}
-                        setPoints={setPoints}
                         flattenedPoints={flattenedPoints}
                         isFinished={isPolyComplete}
                         onChange={
-                            () => {;}
+                            (points: any) => {
+                                setPoints(points);
+                            }
                         }
                         isMouseOverPoint={isMouseOverPoint}
                         setIsMouseOverPoint={setIsMouseOverPoint}
-                    />
+                    />}
                 </Layer>
             </Stage>
-            <div
-                ref={dataRef}
-                style={{display: 'none', width: 400, boxShadow: '7px 7px 5px .4em rgba(0,0,0,.1)'}}
-            >
-                HI
-                <pre>{}</pre>
-            </div>
         </div>
     )
 }

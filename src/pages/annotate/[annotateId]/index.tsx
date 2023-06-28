@@ -27,7 +27,7 @@ const Annotate: NextPageWithLayout = function() {
         curAnnotationData: new Map(),
     });
     const [curLabel, setCurLabel] = useState<Flockfysh.Label | null>(null);
-    const [curBox, setCurBox] = useState<string>('');
+    const [curPolygon, setCurPolygon] = useState<string>('');
     const [isEditing, setIsEditing] = useState(false);
     const [numImages, setNumImages] = useState(0);
 
@@ -70,10 +70,10 @@ const Annotate: NextPageWithLayout = function() {
                     const remoteAnnotationData = (await api.get<{ success: boolean, data: any[] }>(`/api/assets/${imageIds[imageIndex]}/annotations`)).data.data;
                     const localAnnotationData = new Map<string, AnnotationObject>();
                     for (const remoteObject of remoteAnnotationData) {
-                        const [x, y, width, height] = [remoteObject.data.center[0]-remoteObject.data.dimensions[0]/2,remoteObject.data.center[1]-remoteObject.data.dimensions[1]/2, remoteObject.data.dimensions[0], remoteObject.data.dimensions[1]]
-                        localAnnotationData.set(v4(), new AnnotationObject(remoteObject.label, remoteObject.frame, remoteObject._id, {
-                            x, y, width, height,
-                        }));
+                        //const [x, y, width, height] = [remoteObject.data.center[0]-remoteObject.data.dimensions[0]/2,remoteObject.data.center[1]-remoteObject.data.dimensions[1]/2, remoteObject.data.dimensions[0], remoteObject.data.dimensions[1]]
+                        localAnnotationData.set(v4(), new AnnotationObject(remoteObject.label, remoteObject.frame, remoteObject._id, remoteObject.data.points.map((point: number[]): Flockfysh.Point => {
+                            return {x: point[0], y: point[1]};
+                        })));
                     }
                     setCurAnnotationData({ curAnnotationData: localAnnotationData });
                 }
@@ -83,10 +83,10 @@ const Annotate: NextPageWithLayout = function() {
         }
     }, [imageIds, imageIndex]);
     React.useEffect(() => {
-        setCurBox('');
+        setCurPolygon('');
     }, [curLabel]);
     React.useEffect(() => {
-        setCurBox('');
+        setCurPolygon('');
     }, [isEditing]);
 
     function nextImage() {
@@ -105,7 +105,7 @@ const Annotate: NextPageWithLayout = function() {
         setCurAnnotationData({ curAnnotationData });
     }
 
-    async function addAnnotationObject(params?: AnnotationBox) {
+    async function addAnnotationObject(params?: Flockfysh.Point[]) {
         if (curLabel === null) {
             throw new Error('No label selected.');
         }
@@ -125,8 +125,8 @@ const Annotate: NextPageWithLayout = function() {
     return (
         <AnnotationPageContext.Provider value={ {
             curImage, labels, nextImage, prevImage, imageIndex,
-            curAnnotationData, refresh, curLabel, setCurLabel, curBox,
-            setCurBox, addAnnotationObject, isEditing, setIsEditing, numImages
+            curAnnotationData, refresh, curLabel, setCurLabel, curPolygon,
+            setCurPolygon, addAnnotationObject, isEditing, setIsEditing, numImages
         } }>
             <AnnotateInner></AnnotateInner>
         </AnnotationPageContext.Provider>
@@ -144,11 +144,11 @@ function AnnotateInner() {
         setCurLabel,
         isEditing,
         setIsEditing,
-        setCurBox,
+        setCurPolygon,
         numImages,
     } = React.useContext(AnnotationPageContext);
     const router = useRouter();
-    setCurBox;
+    setCurPolygon;
     const NoSSRComponent = dynamic(() => import("@/components/annotate/polygon"), {
         ssr: false,
     });
